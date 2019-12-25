@@ -1,4 +1,13 @@
 <resources>
     <string name="app_name">GoogleMapsModule</string>
     <string name="title_activity_maps">Map</string>
+    <string name="current_location">Current Location</string>
+    <string name="none">None</string>
+    <string name="normal">Normal</string>
+    <string name="satellite">Satellite</string>
+    <string name="terrain">Terrain</string>
+    <string name="hybrid">Hybrid</string>
+    <string name="search_location">Search Location</string>
+    <string name="go_to_location">Go To location</string>
+    <string name="go">Go</string>
 </resources>

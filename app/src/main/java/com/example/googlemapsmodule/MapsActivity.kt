@@ -23,7 +23,9 @@ import androidx.core.content.ContextCompat
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
 import com.google.android.gms.location.FusedLocationProviderClient
-import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
@@ -70,9 +72,11 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnPolyli
     private val BihariJuiceCornerLatLng by lazy { LatLng(28.741727, 77.196156) } //bottom-left fisrt
     private val BurariLatLng by lazy { LatLng(28.748867, 77.200262) } // top-right secound
 
-    private lateinit  var mFusedLocationProviderClient: FusedLocationProviderClient
+    private lateinit var mFusedLocationProviderClient: FusedLocationProviderClient
 
     private lateinit var goTolocEt: EditText
+
+    private lateinit var locationCallback: LocationCallback
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -203,6 +207,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnPolyli
                 mapFragment =
                     supportFragmentManager.findFragmentById(R.id.map) as SupportMapFragment
                 mapFragment.getMapAsync(this)
+
+
             }
 
         }
@@ -220,7 +226,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnPolyli
     override fun onMapReady(googleMap: GoogleMap) {
 
         mMap = googleMap
-        mMap.isMyLocationEnabled = true
+        //mMap.isMyLocationEnabled = true
         mMap.mapType = GoogleMap.MAP_TYPE_NORMAL
         mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(peeragarhiLatLng, 18.0f));
         mMap.addMarker(peeragarhiMarker)
@@ -301,22 +307,59 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnPolyli
     private fun getDeviceLocation() {
 
 //        mFusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this)
-          mFusedLocationProviderClient = FusedLocationProviderClient(this)
-          mFusedLocationProviderClient.lastLocation.addOnCompleteListener { task ->
+        mFusedLocationProviderClient = FusedLocationProviderClient(this)
+        locationCallback = object : LocationCallback() {
 
-              if(task.isSuccessful){
+            override fun onLocationResult(result: LocationResult?) {
 
-                  var location = task.result
-                  getLocation(LatLng(location?.latitude!!,location?.longitude),"Current Location")
+                if (result == null) {
+
+                    return;
+                }
+
+                var loc = result.lastLocation
+
+                Log.e("loc_live_result", "${loc.latitude}__ ${loc.longitude}")
+
+            }
+
+        }
+        mFusedLocationProviderClient.lastLocation.addOnCompleteListener { task ->
+
+            if (task.isSuccessful) {
+
+                var location = task.result
+                getLocation(LatLng(location?.latitude!!, location?.longitude), "Current Location")
 
 
-              }
+            } else {
 
-          }
+                Log.e("getCurrentLoaction", task.exception.toString())
+
+            }
+
+        }
+
+
+        getLocationUpdates()
 
     }
 
-    private fun getLocation(latLng: LatLng,name : String){
+    private fun getLocationUpdates() {
+
+        var locationRequest = LocationRequest.create()
+        locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY)
+        locationRequest.setInterval(5000)//every 5 secounds
+        locationRequest.setFastestInterval(2000)// every 2 secounds
+
+        mFusedLocationProviderClient.requestLocationUpdates(
+            locationRequest, locationCallback,
+            null
+        ) // or for looper can be null or Lopper.getMainLoooper
+
+    }
+
+    private fun getLocation(latLng: LatLng, name: String) {
 
         mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 18.0f));
         mMap.addMarker(MarkerOptions().position(latLng).title(name))
@@ -338,6 +381,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnPolyli
             .strokePattern(PATTERN_POLYGON_ALPHA)
             .strokeWidth(POLYGON_STROKE_WIDTH_PX.toFloat())
         mMap.addCircle(circle)
+
+
     }
 
     private fun stylePolyline(polyline: Polyline) {
@@ -388,8 +433,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnPolyli
         polygon.strokeColor = strokeColor
         polygon.fillColor = fillColor
     }
-
-
 
     private fun requestAllPermission() {
 
@@ -538,7 +581,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnPolyli
 
     }
 
-
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
 
@@ -556,6 +598,15 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnPolyli
                 Toast.makeText(this@MapsActivity, "Gps is disabled", Toast.LENGTH_LONG).show()
             }
 
+        }
+
+    }
+
+    override fun onPause() {
+        super.onPause()
+        if (locationCallback != null) {
+
+            mFusedLocationProviderClient.removeLocationUpdates(locationCallback)
         }
 
     }

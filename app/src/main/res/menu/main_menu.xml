@@ -4,23 +4,23 @@
 
     <item
         android:id="@+id/map_current_loc"
-        android:title="Current Loaction"
+        android:title="@string/current_location"
         app:showAsAction="always" />
 
     <item
         android:id="@+id/map_default"
-        android:title="None" />
+        android:title="@string/none" />
     <item
         android:id="@+id/map_normal"
-        android:title="Normal" />
+        android:title="@string/normal" />
     <item
         android:id="@+id/map_satellite"
-        android:title="Satellite" />
+        android:title="@string/satellite" />
     <item
         android:id="@+id/map_terrain"
-        android:title="Terrain" />
+        android:title="@string/terrain" />
     <item
         android:id="@+id/map_hybrid"
-        android:title="Hybrid" />
+        android:title="@string/hybrid" />
 
 </menu>
