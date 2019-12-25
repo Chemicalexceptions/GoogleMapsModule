@@ -1,19 +1,29 @@
 package com.example.googlemapsmodule
 
 import android.Manifest
+import android.content.Context
 import android.content.DialogInterface
+import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.Color
+import android.location.Address
+import android.location.Geocoder
+import android.location.LocationManager
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
+import android.util.Log
+import android.view.Menu
+import android.view.MenuItem
+import android.widget.Button
+import android.widget.EditText
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
-import com.google.android.gms.location.places.GeoDataClient
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
@@ -22,14 +32,14 @@ import com.google.android.gms.maps.model.*
 import java.util.*
 
 
-class MapsActivity : AppCompatActivity(), OnMapReadyCallback ,GoogleMap.OnPolylineClickListener,
-    GoogleMap.OnPolygonClickListener{
+class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnPolylineClickListener,
+    GoogleMap.OnPolygonClickListener {
 
     private lateinit var mMap: GoogleMap
     private var mLocationPermissionGranted: Boolean = false
     private val LOCATION_REQUEST_CODE = 100
     private val GOOGLE_PLAY_SERVICES_ERROR_CODE = 101
-    private lateinit var mapFragment : SupportMapFragment
+    private lateinit var mapFragment: SupportMapFragment
 
     private val POLYLINE_STROKE_WIDTH_PX = 12f
     private val COLOR_BLACK_ARGB = -0x1000000
@@ -54,32 +64,29 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback ,GoogleMap.OnPolyli
     // Create a stroke pattern of a dot followed by a gap, a dash, and another gap.
     private val PATTERN_POLYGON_BETA: List<PatternItem> = Arrays.asList(DOT, GAP, DASH, GAP)
 
-    private val beirutLatLng = LatLng(28.655219, 77.189181)
-    private val beirutMarker = MarkerOptions().position(beirutLatLng).title("Peeragrahi")
+    private val peeragarhiLatLng = LatLng(28.655219, 77.189181)
+    private val peeragarhiMarker = MarkerOptions().position(peeragarhiLatLng).title("Peeragrahi")
 
+    private val BihariJuiceCornerLatLng by lazy { LatLng(28.741727, 77.196156) } //bottom-left fisrt
+    private val BurariLatLng by lazy { LatLng(28.748867, 77.200262) } // top-right secound
 
     private lateinit  var mFusedLocationProviderClient: FusedLocationProviderClient
 
-
+    private lateinit var goTolocEt: EditText
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_maps)
 
 
-        mFusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this)
+        // mFusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this)
 
 
         initGoogleMap()
 
 
-
-
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
 
-        //method when fragment is hardcoded in fragment in xml
-        mapFragment = supportFragmentManager.findFragmentById(R.id.map) as SupportMapFragment
-        mapFragment.getMapAsync(this)
 
 //        //adding fragment through code
 //        var supportMapFragment = SupportMapFragment.newInstance()
@@ -87,14 +94,117 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback ,GoogleMap.OnPolyli
 //        supportMapFragment.getMapAsync(this)
 
 
+        var goToloc = findViewById<Button>(R.id.btn_go_to_location)
+        goToloc.setOnClickListener({
+
+            var bottomBoundry = 28.741727
+            var leftBoundry = 77.196156
+
+            var topBoundry = 28.748867
+            var rightBoundry = 77.200262
+
+
+            var SANT_NAGAR_BOUNDS = LatLngBounds(BihariJuiceCornerLatLng, BurariLatLng)
+            mMap.animateCamera(CameraUpdateFactory.newLatLngBounds(SANT_NAGAR_BOUNDS, 1))
+            mMap.addMarker(MarkerOptions().position(SANT_NAGAR_BOUNDS.center))
+
+        })
+
+
+        findViewById<Button>(R.id.btn_go_loc).setOnClickListener({
+
+            geoLocate()
+
+        })
+
+        goTolocEt = findViewById(R.id.et_search)
+
+
+    }
+
+    private fun isGPSEnabled(): Boolean {
+
+        val locationManager: LocationManager =
+            getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        val providerEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
+
+        if (providerEnabled) {
+            return true
+        } else {
+
+            var alertDialog = AlertDialog.Builder(this@MapsActivity)
+            alertDialog.setTitle("GPS Permission required")
+            alertDialog.setMessage("GPS permission required for the module to operate")
+            alertDialog.setCancelable(false)
+            alertDialog.setPositiveButton("yes", object : DialogInterface.OnClickListener {
+                override fun onClick(p0: DialogInterface?, p1: Int) {
+
+                    var intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+                    startActivityForResult(intent, 1001)
+
+
+                }
+            })
+            alertDialog.create().show()
+        }
+
+        return false;
+
+    }
+
+    private fun geoLocate() {
+
+        val locationName = goTolocEt.text.toString()
+        val geoCoder = Geocoder(this@MapsActivity, Locale.getDefault())
+        val addrlist = geoCoder.getFromLocation(28.748867, 77.200262, 5)
+
+        // val addrlist = geoCoder.getFromLocationName(locationName,1)
+
+        if (addrlist.size > 0) {
+
+            val address: Address = addrlist.get(0)
+            mMap.animateCamera(
+                CameraUpdateFactory.newLatLngZoom(
+                    LatLng(
+                        address.latitude,
+                        address.longitude
+                    ), 18.0f
+                )
+            );
+            mMap.addMarker(
+                MarkerOptions().position(
+                    LatLng(
+                        address.latitude,
+                        address.longitude
+                    )
+                ).title(address.locality)
+            )
+
+        }
+
+        for (add in addrlist) {
+
+            Log.e("Address", add.getAddressLine(add.maxAddressLineIndex))
+
+        }
+
 
     }
 
     private fun initGoogleMap() {
 
-        if (isServiceOk()) {
+        if (isPlayServicesOk()) {
 
-            requestAllPermission()
+            if (isGPSEnabled()) {
+
+                requestAllPermission()
+
+                //method when fragment is hardcoded in fragment in xml
+                mapFragment =
+                    supportFragmentManager.findFragmentById(R.id.map) as SupportMapFragment
+                mapFragment.getMapAsync(this)
+            }
+
         }
     }
 
@@ -110,22 +220,23 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback ,GoogleMap.OnPolyli
     override fun onMapReady(googleMap: GoogleMap) {
 
         mMap = googleMap
+        mMap.isMyLocationEnabled = true
+        mMap.mapType = GoogleMap.MAP_TYPE_NORMAL
+        mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(peeragarhiLatLng, 18.0f));
+        mMap.addMarker(peeragarhiMarker)
 
-        // Turn on the My Location layer and the related control on the map.
-        updateLocationUI()
 
-        // Get the current location of the device and set the position of the map.
-        getDeviceLocation()
-
-        addCircle()
-
-        googleMap.setMapStyle(
-            MapStyleOptions.loadRawResourceStyle(
-                this, R.raw.map_style))
-
-        googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(beirutLatLng, 18.0f));
-        googleMap.addMarker(beirutMarker)
-
+//        // Turn on the My Location layer and the related control on the map.
+//        updateLocationUI()
+//
+//        // Get the current location of the device and set the position of the map.
+//        getDeviceLocation()
+//
+//        addCircle()
+//
+//        googleMap.setMapStyle(
+//            MapStyleOptions.loadRawResourceStyle(
+//                this, R.raw.map_style))
 
 
 //        val polyline1 = mMap.addPolyline(
@@ -189,6 +300,27 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback ,GoogleMap.OnPolyli
 
     private fun getDeviceLocation() {
 
+//        mFusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this)
+          mFusedLocationProviderClient = FusedLocationProviderClient(this)
+          mFusedLocationProviderClient.lastLocation.addOnCompleteListener { task ->
+
+              if(task.isSuccessful){
+
+                  var location = task.result
+                  getLocation(LatLng(location?.latitude!!,location?.longitude),"Current Location")
+
+
+              }
+
+          }
+
+    }
+
+    private fun getLocation(latLng: LatLng,name : String){
+
+        mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 18.0f));
+        mMap.addMarker(MarkerOptions().position(latLng).title(name))
+
     }
 
     private fun updateLocationUI() {
@@ -196,8 +328,9 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback ,GoogleMap.OnPolyli
     }
 
     private fun addCircle() {
+
         val circle = CircleOptions()
-            .center(beirutLatLng)
+            .center(peeragarhiLatLng)
             .radius(30.0)
             .strokeColor(0XFF259DC6.toInt())
             .fillColor(0x33000000)
@@ -257,6 +390,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback ,GoogleMap.OnPolyli
     }
 
 
+
     private fun requestAllPermission() {
 
         if (checkLocationPermission()) {
@@ -291,7 +425,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback ,GoogleMap.OnPolyli
         ) == PackageManager.PERMISSION_GRANTED
     }
 
-    private fun isServiceOk(): Boolean {
+    private fun isPlayServicesOk(): Boolean {
 
         val googleApi = GoogleApiAvailability.getInstance()
         val result = googleApi.isGooglePlayServicesAvailable(this)
@@ -352,6 +486,80 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback ,GoogleMap.OnPolyli
 
 
     }
+
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+
+        menuInflater.inflate(R.menu.main_menu, menu)
+        return true
+
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+
+        var id = item.itemId
+
+        when (id) {
+
+            R.id.map_default -> {
+
+                mMap.mapType = GoogleMap.MAP_TYPE_NONE
+            }
+
+            R.id.map_normal -> {
+
+                mMap.mapType = GoogleMap.MAP_TYPE_NORMAL
+            }
+            R.id.map_satellite -> {
+
+                mMap.mapType = GoogleMap.MAP_TYPE_SATELLITE
+            }
+
+
+            R.id.map_terrain -> {
+
+                mMap.mapType = GoogleMap.MAP_TYPE_TERRAIN
+            }
+
+            R.id.map_hybrid -> {
+
+                mMap.mapType = GoogleMap.MAP_TYPE_HYBRID
+            }
+
+            R.id.map_current_loc -> {
+
+                getDeviceLocation()
+            }
+
+        }
+
+
+        return super.onOptionsItemSelected(item)
+
+
+    }
+
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+
+        if (requestCode == 1001) {
+
+            val locationManager: LocationManager =
+                getSystemService(Context.LOCATION_SERVICE) as LocationManager
+            val providerEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
+
+            if (providerEnabled) {
+
+                Toast.makeText(this@MapsActivity, "Gps is enabled", Toast.LENGTH_LONG).show()
+            } else {
+
+                Toast.makeText(this@MapsActivity, "Gps is disabled", Toast.LENGTH_LONG).show()
+            }
+
+        }
+
+    }
+
 
     //if dnt use fragment only for actvity
 //    override fun onStart() {
