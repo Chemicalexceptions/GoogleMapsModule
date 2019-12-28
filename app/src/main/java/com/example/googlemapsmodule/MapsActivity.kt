@@ -10,6 +10,7 @@ import android.location.Geocoder
 import android.location.LocationManager
 import android.os.Build
 import android.os.Bundle
+import android.os.HandlerThread
 import android.provider.Settings
 import android.util.Log
 import android.view.Menu
@@ -22,10 +23,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
-import com.google.android.gms.location.FusedLocationProviderClient
-import com.google.android.gms.location.LocationCallback
-import com.google.android.gms.location.LocationRequest
-import com.google.android.gms.location.LocationResult
+import com.google.android.gms.location.*
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
@@ -72,11 +70,13 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnPolyli
     private val BihariJuiceCornerLatLng by lazy { LatLng(28.741727, 77.196156) } //bottom-left fisrt
     private val BurariLatLng by lazy { LatLng(28.748867, 77.200262) } // top-right secound
 
-    private lateinit var mFusedLocationProviderClient: FusedLocationProviderClient
+    private lateinit var mFusedLocationProviderClient: FusedLocationProviderClient // by lazy { LocationServices.getFusedLocationProviderClient(this)}
 
     private lateinit var goTolocEt: EditText
 
     private lateinit var locationCallback: LocationCallback
+
+    private lateinit var mHandlerThread: HandlerThread
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -306,8 +306,9 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnPolyli
 
     private fun getDeviceLocation() {
 
-//        mFusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this)
-        mFusedLocationProviderClient = FusedLocationProviderClient(this)
+        mFusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this)
+
+
         locationCallback = object : LocationCallback() {
 
             override fun onLocationResult(result: LocationResult?) {
@@ -317,9 +318,18 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnPolyli
                     return;
                 }
 
-                var loc = result.lastLocation
+                var location = result.lastLocation
 
-                Log.e("loc_live_result", "${loc.latitude}__ ${loc.longitude}")
+                Log.e("loc_live_result", "${location.latitude}__ ${location.longitude}")
+                Log.e("Thread location", "Thread name ${Thread.currentThread().name}")
+
+                runOnUiThread({
+
+                    getLocation(LatLng(location?.latitude!!, location?.longitude), "Current Location")
+
+                })
+
+
 
             }
 
@@ -329,7 +339,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnPolyli
             if (task.isSuccessful) {
 
                 var location = task.result
-                getLocation(LatLng(location?.latitude!!, location?.longitude), "Current Location")
 
 
             } else {
@@ -352,16 +361,35 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnPolyli
         locationRequest.setInterval(5000)//every 5 secounds
         locationRequest.setFastestInterval(2000)// every 2 secounds
 
+        // for running in main thread
+//        mFusedLocationProviderClient.requestLocationUpdates(
+//            locationRequest, locationCallback,
+//            null
+//        ) // or for looper can be null or Lopper.getMainLoooper
+
+
+        /*if u want live location in a sepearte thread in background
+        * use the below code
+        */
+
+        mHandlerThread = HandlerThread("Location_bg_thread")
+        mHandlerThread.start()
+
         mFusedLocationProviderClient.requestLocationUpdates(
             locationRequest, locationCallback,
-            null
-        ) // or for looper can be null or Lopper.getMainLoooper
+            mHandlerThread.looper
+        ) // for bg thread
+
+
+
+
+
 
     }
 
     private fun getLocation(latLng: LatLng, name: String) {
 
-        mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 18.0f));
+        mMap.animateCamera(CameraUpdateFactory.newLatLng(latLng))//, 18.0f
         mMap.addMarker(MarkerOptions().position(latLng).title(name))
 
     }
@@ -604,10 +632,28 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnPolyli
 
     override fun onPause() {
         super.onPause()
+
+//        if (locationCallback != null) {
+//
+//            mFusedLocationProviderClient.removeLocationUpdates(locationCallback)
+//        }
+
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+
+        if(mHandlerThread!=null){
+
+            mHandlerThread.quit()
+
+        }
+
         if (locationCallback != null) {
 
             mFusedLocationProviderClient.removeLocationUpdates(locationCallback)
         }
+
 
     }
 

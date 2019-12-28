@@ -32,6 +32,7 @@
     </LinearLayout>
 
 
+
     <Button
         android:id="@+id/btn_go_to_location"
         android:layout_width="match_parent"
