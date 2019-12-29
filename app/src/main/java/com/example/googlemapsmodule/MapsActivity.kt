@@ -124,6 +124,20 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnPolyli
         goTolocEt = findViewById(R.id.et_search)
 
 
+        findViewById<Button>(R.id.btn_start_service).setOnClickListener({
+
+         startLocationService()
+
+        })
+
+
+        findViewById<Button>(R.id.btn_stop_service).setOnClickListener({
+
+            stopLocationService()
+
+        })
+
+
     }
 
     private fun isGPSEnabled(): Boolean {
@@ -643,20 +657,35 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnPolyli
     override fun onDestroy() {
         super.onDestroy()
 
-        if(mHandlerThread!=null){
-
-            mHandlerThread.quit()
-
-        }
-
-        if (locationCallback != null) {
-
-            mFusedLocationProviderClient.removeLocationUpdates(locationCallback)
-        }
+//        if(mHandlerThread!=null){
+//
+//            mHandlerThread.quit()
+//
+//        }
+//
+//        if (locationCallback != null) {
+//
+//            mFusedLocationProviderClient.removeLocationUpdates(locationCallback)
+//        }
 
 
     }
 
+    private fun startLocationService(){
+
+        var intent = Intent(this,MyBackgroudLoactionService::class.java)
+        ContextCompat.startForegroundService(this,intent)
+        Toast.makeText(this,"Service started",Toast.LENGTH_LONG).show()
+    }
+
+    private fun stopLocationService(){
+
+        var intent = Intent(this,MyBackgroudLoactionService::class.java)
+        stopService(intent)
+        
+        Toast.makeText(this,"Service stopped",Toast.LENGTH_LONG).show()
+
+    }
 
     //if dnt use fragment only for actvity
 //    override fun onStart() {
